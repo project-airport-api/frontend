@@ -1,4 +1,4 @@
-import { addRule, removeRule, rule, updateRule } from '@/services/ant-design-pro/api';
+import { listApiByPage } from '@/services/airport/apiController';
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns, ProDescriptionsItemProps } from '@ant-design/pro-components';
 import {
@@ -11,18 +11,19 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import '@umijs/max';
-import { Button, Drawer, Input, message } from 'antd';
+import { Button, Drawer, message } from 'antd';
+import { SortOrder } from 'antd/es/table/interface';
 import React, { useRef, useState } from 'react';
-import type { FormValueType } from './components/UpdateForm';
-import UpdateForm from './components/UpdateForm';
+import UpdateForm, { FormValueType } from './components/UpdateForm';
+// import UpdateForm from './components/UpdateForm';
 
 /**
  * @en-US Add node
  * @zh-CN 添加节点
  * @param fields
  */
-const handleAdd = async (fields: API.RuleListItem) => {
-  const hide = message.loading('正在添加');
+const handleAdd = async (fields: API.Api) => {
+  const hide = message.loading('Adding API...');
   try {
     await addRule({
       ...fields,
@@ -67,7 +68,7 @@ const handleUpdate = async (fields: FormValueType) => {
  *
  * @param selectedRows
  */
-const handleRemove = async (selectedRows: API.RuleListItem[]) => {
+const handleRemove = async (selectedRows: API.Api[]) => {
   const hide = message.loading('正在删除');
   if (!selectedRows) return true;
   try {
@@ -96,19 +97,26 @@ const TableList: React.FC = () => {
   const [updateModalOpen, handleUpdateModalOpen] = useState<boolean>(false);
   const [showDetail, setShowDetail] = useState<boolean>(false);
   const actionRef = useRef<ActionType>();
-  const [currentRow, setCurrentRow] = useState<API.RuleListItem>();
-  const [selectedRowsState, setSelectedRows] = useState<API.RuleListItem[]>([]);
+  const [currentRow, setCurrentRow] = useState<API.Api>();
+  const [selectedRowsState, setSelectedRows] = useState<API.Api[]>([]);
 
   /**
    * @en-US International configuration
    * @zh-CN 国际化配置
    * */
 
-  const columns: ProColumns<API.RuleListItem>[] = [
+  const columns: ProColumns<API.Api>[] = [
     {
-      title: 'Rule Name',
+      title: 'ID',
+      dataIndex: 'id',
+      valueType: 'index',
+      hideInTable: true,
+      hideInForm: true,
+    },
+    {
+      title: 'Name',
       dataIndex: 'name',
-      tip: 'The rule name is the unique key',
+      valueType: 'text',
       render: (dom, entity) => {
         return (
           <a
@@ -124,54 +132,74 @@ const TableList: React.FC = () => {
     },
     {
       title: 'Description',
-      dataIndex: 'desc',
-      valueType: 'textarea',
+      dataIndex: 'description',
+      valueType: 'text',
     },
     {
-      title: 'Number of Service Calls',
-      dataIndex: 'callNo',
-      sorter: true,
-      hideInForm: true,
-      renderText: (val: string) => `${val}${'0000'}`,
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      hideInForm: true,
+      title: 'Request Method',
+      dataIndex: 'requestMethod',
       valueEnum: {
-        0: {
-          text: 'default',
+        GET: {
+          text: 'GET',
           status: 'Default',
         },
-        1: {
-          text: 'running',
+        POST: {
+          text: 'POST',
           status: 'Processing',
         },
-        2: {
-          text: 'online',
+        PATCH: {
+          text: 'PATCH',
           status: 'Success',
         },
-        3: {
-          text: 'abnormal',
+        DELETE: {
+          text: 'DELETE',
           status: 'Error',
         },
       },
     },
     {
-      title: 'Last Scheduled at',
-      sorter: true,
-      dataIndex: 'updatedAt',
-      valueType: 'dateTime',
-      renderFormItem: (item, { defaultRender, ...rest }, form) => {
-        const status = form.getFieldValue('status');
-        if (`${status}` === '0') {
-          return false;
-        }
-        if (`${status}` === '3') {
-          return <Input {...rest} placeholder={'Please enter the reason for the exception!'} />;
-        }
-        return defaultRender(item);
+      title: 'URL',
+      dataIndex: 'url',
+      valueType: 'text',
+    },
+    {
+      title: 'Request Header',
+      dataIndex: 'requestHeader',
+      valueType: 'text',
+      hideInTable: true,
+      hideInForm: true,
+    },
+    {
+      title: 'Response Header',
+      dataIndex: 'responseHeader',
+      hideInTable: true,
+      hideInForm: true,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'enabled',
+      valueEnum: {
+        0: {
+          text: 'Enabled',
+          status: 'Success',
+        },
+        1: {
+          text: 'Disabled',
+          status: 'Error',
+        },
       },
+    },
+    {
+      title: 'Creation Time',
+      dataIndex: 'createTime',
+      valueType: 'dateTime',
+      hideInForm: true,
+    },
+    {
+      title: 'Update Time',
+      dataIndex: 'updateTime',
+      valueType: 'dateTime',
+      hideInForm: true,
     },
     {
       title: 'Option',
@@ -179,24 +207,24 @@ const TableList: React.FC = () => {
       valueType: 'option',
       render: (_, record) => [
         <a
-          key="config"
+          key="editApi"
           onClick={() => {
             handleUpdateModalOpen(true);
             setCurrentRow(record);
           }}
         >
-          Configuration
+          Edit
         </a>,
-        <a key="subscribeAlert" href="https://procomponents.ant.design/">
-          Subscribe to alerts
+        <a key="deleteApi" href="https://procomponents.ant.design/">
+          Delete
         </a>,
       ],
     },
   ];
   return (
     <PageContainer>
-      <ProTable<API.RuleListItem, API.PageParams>
-        headerTitle={'Enquiry Form'}
+      <ProTable<API.Api, { page: number; pageSize: number }>
+        headerTitle={'API List'}
         actionRef={actionRef}
         rowKey="key"
         search={{
@@ -213,7 +241,36 @@ const TableList: React.FC = () => {
             <PlusOutlined /> New
           </Button>,
         ]}
-        request={rule}
+        request={async (
+          params: {
+            pageSize?: number;
+            current?: number;
+            keyword?: string;
+          },
+          sort: Record<string, SortOrder>,
+          filter: Record<string, (string | number)[] | null>,
+        ) => {
+          const res = await listApiByPage({
+            apiListRequest: {
+              page: params.current ? params.current : 0,
+              size: params.pageSize ? params.pageSize : 10,
+            },
+          });
+
+          if (res?.data) {
+            return {
+              data: res.data.records,
+              success: true,
+              total: res.data.total,
+            };
+          } else {
+            return {
+              data: [],
+              success: false,
+              total: 0,
+            };
+          }
+        }}
         columns={columns}
         rowSelection={{
           onChange: (_, selectedRows) => {
@@ -234,10 +291,7 @@ const TableList: React.FC = () => {
                 {selectedRowsState.length}
               </a>{' '}
               item &nbsp;&nbsp;
-              <span>
-                Total Number of Service Calls{' '}
-                {selectedRowsState.reduce((pre, item) => pre + item.callNo!, 0)} 0000
-              </span>
+              <span>{selectedRowsState.length}</span>
             </div>
           }
         >
@@ -259,7 +313,7 @@ const TableList: React.FC = () => {
         open={createModalOpen}
         onOpenChange={handleModalOpen}
         onFinish={async (value) => {
-          const success = await handleAdd(value as API.RuleListItem);
+          const success = await handleAdd(value as API.Api);
           if (success) {
             handleModalOpen(false);
             if (actionRef.current) {
@@ -311,7 +365,7 @@ const TableList: React.FC = () => {
         closable={false}
       >
         {currentRow?.name && (
-          <ProDescriptions<API.RuleListItem>
+          <ProDescriptions<API.Api>
             column={2}
             title={currentRow?.name}
             request={async () => ({
@@ -320,7 +374,7 @@ const TableList: React.FC = () => {
             params={{
               id: currentRow?.name,
             }}
-            columns={columns as ProDescriptionsItemProps<API.RuleListItem>[]}
+            columns={columns as ProDescriptionsItemProps<API.Api>[]}
           />
         )}
       </Drawer>

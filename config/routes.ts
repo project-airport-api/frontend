@@ -15,7 +15,7 @@
       { path: '/admin/sub-page', name: 'Sub-Page', component: './Admin' },
     ],
   },
-  // { name: 'Search Table', icon: 'table', path: '/list', component: './TableList' },
+  { name: 'API List', icon: 'table', path: '/list', component: './TableList' },
   { path: '/', redirect: '/welcome' },
   { path: '*', layout: false, component: './404' },
 ];
